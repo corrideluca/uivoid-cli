@@ -2,6 +2,8 @@
 
 Create an organization-owned [UIvoid](https://www.uivoid.app/) MCP project from an existing API.
 
+UIvoid is model-agnostic. The generated URL is a standard remote MCP server, so it can be used by Claude, OpenAI clients, and other agents or applications that support remote MCP servers. It does not require a particular model provider; the host application only needs MCP support.
+
 ```bash
 npx uivoid create my-app
 ```
@@ -35,7 +37,9 @@ For CI, provide `UIVOID_TOKEN` and pass `--yes`. `UIVOID_API_URL` and `UIVOID_PO
 
 ## Agent prompt and skill
 
-`npx uivoid prompt` prints a prompt that a coding agent can use to prepare the current project and run the integration. The npm package also ships a Codex skill. Install it with:
+`npx uivoid prompt` prints a provider-neutral prompt that Claude, Codex, or another coding agent can use to prepare the current project and run the integration.
+
+The npm package also ships an optional `SKILL.md` for clients that support agent skills. Install it into Codex's personal skills directory with:
 
 ```bash
 npx uivoid skill --install
@@ -50,7 +54,7 @@ The CLI uses these control-plane endpoints:
 - `POST /api/projects/:id/keys`
 - `POST /api/projects/:id/tools`
 
-Browser login expects the portal route `/cli/auth?callback=...&state=...` to return the personal access token to the loopback callback. The route is intentionally documented here because it is the only portal/API addition still needed for the default login UX; `uivoid login --token` and `UIVOID_TOKEN` work with the current control plane.
+Browser login uses `/cli/auth?callback=...&state=...` to return a revocable personal access token to a loopback callback. `uivoid login --token` and `UIVOID_TOKEN` are also available for non-interactive environments.
 
 ## Development
 

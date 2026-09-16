@@ -1,6 +1,6 @@
 {
   "name": "uivoid",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Create UIvoid MCP projects from existing APIs",
   "type": "module",
   "bin": {
