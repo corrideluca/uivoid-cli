@@ -46,6 +46,13 @@ export class UivoidApi {
     return this.request("api/projects", { method: "POST", body: JSON.stringify({ subdomain }) });
   }
 
+  activateProject(projectId: string): Promise<Project> {
+    return this.request(`api/projects/${projectId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "active" }),
+    });
+  }
+
   createKey(projectId: string): Promise<{ id: string; key: string }> {
     return this.request(`api/projects/${projectId}/keys`, {
       method: "POST",

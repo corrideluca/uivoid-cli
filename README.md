@@ -8,12 +8,13 @@ UIvoid is model-agnostic. The generated URL is a standard remote MCP server, so 
 npx uivoid create my-app
 ```
 
-The CLI opens the UIvoid portal for login, asks for the existing API's base URL, discovers its OpenAPI document, lets you review the operations and scopes, creates the project in your organization, and prints its MCP URL:
+The CLI opens the UIvoid portal for login, asks for the existing API's base URL, discovers its OpenAPI document, lets you review the operations and scopes, creates the project in your organization, activates its MCP server, and prints its MCP URL:
 
 ```text
 ✓ Created my-app
 ✓ Found OpenAPI document at https://api.example.com/openapi.json
 ✓ Mapped 9 scoped tools
+✓ MCP server active
 
 Ready  https://my-app.uivoid.app/mcp
 Auth: organization login · 9 tools mapped

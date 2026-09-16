@@ -82,6 +82,7 @@ program.command("create")
     createSpinner.succeed(`Created ${pc.bold(project.subdomain)}`);
 
     let mapped: ToolDefinition[] = [];
+    let setupComplete = !options.discover;
     if (options.discover && baseUrl) {
       const discoverySpinner = ora("Discovering API endpoints").start();
       try {
@@ -103,14 +104,22 @@ program.command("create")
         const mappingSpinner = ora(`Mapping ${mapped.length} endpoints`).start();
         for (const tool of mapped) await api.createTool(project.id, tool);
         mappingSpinner.succeed(`Mapped ${mapped.length} scoped tools`);
+        setupComplete = true;
       } catch (error) {
         discoverySpinner.stop();
         console.warn(`${pc.yellow("!")} Project created, but endpoint discovery did not finish: ${(error as Error).message}`);
       }
     }
 
-    console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
-    console.log(pc.dim(`Auth: organization login · ${mapped.length} tool${mapped.length === 1 ? "" : "s"} mapped`));
+    if (setupComplete) {
+      const activateSpinner = ora("Activating MCP server").start();
+      await api.activateProject(project.id);
+      activateSpinner.succeed("MCP server active");
+      console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
+      console.log(pc.dim(`Auth: organization login · ${mapped.length} tool${mapped.length === 1 ? "" : "s"} mapped`));
+    } else {
+      console.log(`\n${pc.yellow(pc.bold("Created, not active"))}  Endpoint setup must finish before ${project.mcp_url} can accept connections.`);
+    }
   });
 
 program.command("prompt").description("Print the agent prompt for integrating the current project").action(() => console.log(integrationPrompt));
