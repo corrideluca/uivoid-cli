@@ -1,0 +1,57 @@
+name: Bug report
+description: Report a reproducible problem with the UIvoid CLI
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve UIvoid. Never include access tokens, passwords, or private API credentials.
+  - type: input
+    id: version
+    attributes:
+      label: CLI version
+      description: Run `npx uivoid --version`.
+      placeholder: 0.1.3
+    validations:
+      required: true
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      options:
+        - create
+        - login
+        - logout
+        - whoami
+        - prompt
+        - skill
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized terminal output when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: macOS 15, Node.js 22
+    validations:
+      required: true
