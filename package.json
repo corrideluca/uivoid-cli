@@ -2,6 +2,14 @@
   "name": "uivoid",
   "version": "0.1.2",
   "description": "Create UIvoid MCP projects from existing APIs",
+  "homepage": "https://github.com/corrideluca/uivoid-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/corrideluca/uivoid-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/corrideluca/uivoid-cli/issues"
+  },
   "type": "module",
   "bin": {
     "uivoid": "dist/cli.js"
