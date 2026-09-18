@@ -119,6 +119,7 @@ program.command("create")
     createSpinner.succeed(`Created ${pc.bold(project.subdomain)}`);
 
     let mapped: ToolDefinition[] = [];
+    let created: ToolDefinition[] = [];
     let setupComplete = !options.discover;
     let generatedKey: string | undefined;
     if (options.discover && baseUrl) {
@@ -155,7 +156,10 @@ program.command("create")
           if (!approved) mapped = mapped.filter((tool) => tool.scope !== "destructive");
         }
         const mappingSpinner = ora(`Mapping ${mapped.length} endpoints`).start();
-        for (const tool of mapped) await api.createTool(project.id, tool);
+        for (const tool of mapped) {
+          await api.createTool(project.id, tool);
+          created.push(tool);
+        }
         mappingSpinner.succeed(`Mapped ${mapped.length} scoped tools`);
         setupComplete = true;
       } catch (error) {
@@ -173,11 +177,11 @@ program.command("create")
     if (options.json) {
       console.log(JSON.stringify({
         account, project: project.subdomain, status: setupComplete ? "active" : "created",
-        mcpUrl: setupComplete ? project.mcp_url : null, toolCount: mapped.length,
+        mcpUrl: setupComplete ? project.mcp_url : null, toolCount: created.length,
         scopes: {
-          read: mapped.filter((tool) => tool.scope === "read").length,
-          write: mapped.filter((tool) => tool.scope === "write").length,
-          destructive: mapped.filter((tool) => tool.scope === "destructive").length,
+          read: created.filter((tool) => tool.scope === "read").length,
+          write: created.filter((tool) => tool.scope === "write").length,
+          destructive: created.filter((tool) => tool.scope === "destructive").length,
         },
         ...(generatedKey ? { outboundKey: generatedKey } : {}),
       }));
@@ -186,7 +190,7 @@ program.command("create")
 
     if (setupComplete) {
       console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
-      console.log(pc.dim(`Auth: organization login · ${mapped.length} tool${mapped.length === 1 ? "" : "s"} mapped`));
+      console.log(pc.dim(`Auth: organization login · ${created.length} tool${created.length === 1 ? "" : "s"} mapped`));
     } else {
       console.log(`\n${pc.yellow(pc.bold("Created, not active"))}  Endpoint setup must finish before ${project.mcp_url} can accept connections.`);
     }
