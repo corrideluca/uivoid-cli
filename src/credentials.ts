@@ -17,10 +17,12 @@ export function parseCredentialOption(options: CredentialOption): OutboundCreden
     if (separatorIndex < 1) {
       throw new Error(`--auth-header must be formatted "Header-Name:value", got ${JSON.stringify(options.authHeader)}`);
     }
-    return {
-      headerName: options.authHeader.slice(0, separatorIndex).trim(),
-      secret: options.authHeader.slice(separatorIndex + 1).trim(),
-    };
+    const headerName = options.authHeader.slice(0, separatorIndex).trim();
+    const secret = options.authHeader.slice(separatorIndex + 1).trim();
+    if (!secret) {
+      throw new Error(`--auth-header must include a non-empty value after the colon, got ${JSON.stringify(options.authHeader)}`);
+    }
+    return { headerName, secret };
   }
   if (options.authKey) return { secret: options.authKey };
   return undefined;

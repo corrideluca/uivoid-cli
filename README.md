@@ -24,9 +24,12 @@ Auth: organization login · 9 tools mapped
 
 ```bash
 npx uivoid login
-npx uivoid whoami
+npx uivoid whoami [--json]
 npx uivoid create [name] [--base-url URL] [--openapi URL] [--yes]
+npx uivoid create [name] [--auth-key VALUE] [--auth-header "Header-Name:value"]
+npx uivoid create [name] [--include tool1,tool2,...] [--exclude-destructive] [--json]
 npx uivoid create [name] --no-discover
+npx uivoid credentials <project> [--auth-key VALUE] [--auth-header "Header-Name:value"]
 npx uivoid prompt
 npx uivoid skill [--install]
 npx uivoid logout
@@ -34,7 +37,17 @@ npx uivoid logout
 
 `create` discovers `/openapi.json`, `/api/openapi.json`, or `/swagger.json`. Use `--openapi` for another location. GET operations default to `read`, POST/PUT/PATCH to `write`, and DELETE to `destructive`; the interactive review keeps destructive tools unselected by default.
 
-For CI, provide `UIVOID_TOKEN` and pass `--yes`. `UIVOID_API_URL` and `UIVOID_PORTAL_URL` override the production services for local development. Credentials are stored at `~/.config/uivoid/config.json` with mode `0600`.
+For CI, provide `UIVOID_TOKEN` and one non-interactive endpoint-selection flag: `--yes` (accept everything, including destructive), `--include tool1,tool2,...` (an explicit allowlist), or `--exclude-destructive` (everything except DELETE-derived tools). If none of those is passed and the CLI can't detect a real interactive terminal — or `--json` is set, since an interactive prompt would otherwise write to stdout ahead of the JSON line — it prints a clear error explaining which flag to add, instead of hanging waiting for input. `UIVOID_API_URL` and `UIVOID_PORTAL_URL` override the production services for local development. Credentials are stored at `~/.config/uivoid/config.json` with mode `0600`.
+
+### Outbound credentials
+
+The MCP tools uivoid generates call back into your existing API, and that API usually expects its own credential. Pass `--auth-key <value>` (sent as `Authorization: Bearer <value>`) or `--auth-header "Header-Name:value"` (a custom header) at `create` time, or set/replace it later without recreating the project:
+
+```bash
+npx uivoid credentials my-app --auth-key sk_live_...
+```
+
+If you pass neither flag at `create` time, uivoid generates a credential for you and prints it once — save it immediately, since it isn't shown again.
 
 ## Agent prompt and skill
 
@@ -51,9 +64,11 @@ npx uivoid skill --install
 The CLI uses these control-plane endpoints:
 
 - `GET /api/auth/me`
+- `GET /api/projects`
 - `POST /api/projects`
 - `POST /api/projects/:id/keys`
 - `POST /api/projects/:id/tools`
+- `PATCH /api/projects/:id/credentials`
 
 Browser login uses `/cli/auth?callback=...&state=...` to return a revocable personal access token to a loopback callback. `uivoid login --token` and `UIVOID_TOKEN` are also available for non-interactive environments.
 

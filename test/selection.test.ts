@@ -46,3 +46,21 @@ test("rejects combining more than one selection flag", () => {
     /Use only one of --yes, --include, or --exclude-destructive/
   );
 });
+
+test("--include resolving to zero tools throws instead of succeeding empty", () => {
+  assert.throws(
+    () => resolveNonInteractiveSelection(candidates, { include: "," }),
+    /No tools would be exposed with the current flags/
+  );
+});
+
+test("--exclude-destructive against all-destructive candidates throws instead of succeeding empty", () => {
+  const allDestructive = [
+    { name: "delete_customer", scope: "destructive" },
+    { name: "delete_order", scope: "destructive" },
+  ];
+  assert.throws(
+    () => resolveNonInteractiveSelection(allDestructive, { excludeDestructive: true }),
+    /No tools would be exposed with the current flags/
+  );
+});

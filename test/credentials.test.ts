@@ -37,3 +37,10 @@ test("rejects both --auth-key and --auth-header together", () => {
     /Use either --auth-key or --auth-header, not both/
   );
 });
+
+test("rejects --auth-header with an empty value after the colon", () => {
+  assert.throws(
+    () => parseCredentialOption({ authHeader: "X-Api-Key:" }),
+    /must include a non-empty value/
+  );
+});

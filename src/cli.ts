@@ -15,7 +15,7 @@ import { discoverOpenApi, toolsFromOpenApi } from "./discovery.js";
 import { browserLogin } from "./login.js";
 import type { LoginResult } from "./login.js";
 import { integrationPrompt } from "./prompt.js";
-import { resolveNonInteractiveSelection } from "./selection.js";
+import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./selection.js";
 import type { Config, ToolDefinition } from "./types.js";
 
 const program = new Command();
@@ -26,6 +26,9 @@ async function authenticatedConfig(tokenOption?: string) {
   if (tokenOption) return { ...config, token: tokenOption };
   if (process.env.UIVOID_TOKEN) return { ...config, token: process.env.UIVOID_TOKEN };
   if (config.token) return config;
+  if (!process.stdin.isTTY) {
+    program.error("No stored session and no TTY detected. Set UIVOID_TOKEN, pass --token <token>, or run `uivoid login --token <token>` first.");
+  }
   console.log(pc.dim("Opening portal.uivoid.app to connect this CLI…"));
   const login = await browserLogin(config);
   const next: Config = { ...config, token: login.token };
@@ -95,11 +98,31 @@ program.command("create")
     }
 
     const interactive = Boolean(process.stdin.isTTY);
+
+    if (credential && !options.discover) {
+      program.error("--auth-key/--auth-header have no effect with --no-discover — no endpoints are mapped, so there is nothing to authenticate. Run `uivoid credentials <name> --auth-key ...` after mapping endpoints.");
+    }
+    if (!options.discover && (options.yes || options.include || options.excludeDestructive)) {
+      console.warn(`${pc.yellow("!")} --yes/--include/--exclude-destructive have no effect with --no-discover.`);
+    }
+    if (options.discover) {
+      try {
+        assertSingleSelectionMode(options);
+      } catch (error) {
+        program.error((error as Error).message);
+      }
+      const hasSelectionFlag = Boolean(options.yes || options.include || options.excludeDestructive);
+      if (!hasSelectionFlag) {
+        if (options.json) program.error("--json requires one of --yes, --include, or --exclude-destructive (an interactive prompt would otherwise write to stdout and break JSON parsing).");
+        if (!interactive) program.error("No interactive terminal detected. Use --yes, --include <tool1,tool2,...>, --exclude-destructive, or --no-discover instead.");
+      }
+    }
+
     const config = await authenticatedConfig(options.token);
     const api = new UivoidApi(config);
     const me = await api.me();
-    const account = `${me.email}${me.organizations[0] ? ` · ${me.organizations[0].name}` : ""}`;
-    if (!options.json) console.log(pc.dim(`Signed in as ${account}`));
+    const account = { email: me.email, organization: me.organizations[0] ?? null };
+    if (!options.json) console.log(pc.dim(`Signed in as ${me.email}${account.organization ? ` · ${account.organization.name}` : ""}`));
 
     let name = providedName;
     if (!name) {
@@ -118,11 +141,12 @@ program.command("create")
     const project = await api.createProject(subdomain);
     createSpinner.succeed(`Created ${pc.bold(project.subdomain)}`);
 
-    let mapped: ToolDefinition[] = [];
     let created: ToolDefinition[] = [];
     let setupComplete = !options.discover;
     let generatedKey: string | undefined;
+    let mappingError: string | undefined;
     if (options.discover && baseUrl) {
+      let mapped: ToolDefinition[] = [];
       const discoverySpinner = ora("Discovering API endpoints").start();
       try {
         const discovered = await discoverOpenApi(baseUrl, options.openapi);
@@ -136,6 +160,7 @@ program.command("create")
         try {
           nonInteractive = resolveNonInteractiveSelection(candidates, options);
         } catch (error) {
+          if (generatedKey) console.warn(`${pc.yellow("!")} Outbound credential generated but not yet displayed — save it now: ${generatedKey}`);
           program.error((error as Error).message);
         }
         let selected: string[];
@@ -164,7 +189,9 @@ program.command("create")
         setupComplete = true;
       } catch (error) {
         discoverySpinner.stop();
-        console.warn(`${pc.yellow("!")} Project created, but endpoint discovery did not finish: ${(error as Error).message}`);
+        mappingError = (error as Error).message;
+        console.warn(`${pc.yellow("!")} Project created, but endpoint discovery did not finish: ${mappingError}`);
+        process.exitCode = 1;
       }
     }
 
@@ -183,7 +210,8 @@ program.command("create")
           write: created.filter((tool) => tool.scope === "write").length,
           destructive: created.filter((tool) => tool.scope === "destructive").length,
         },
-        ...(generatedKey ? { outboundKey: generatedKey } : {}),
+        outboundKey: generatedKey ?? null,
+        error: mappingError ?? null,
       }));
       return;
     }
