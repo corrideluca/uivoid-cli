@@ -14,9 +14,10 @@ import type { OutboundCredential } from "./credentials.js";
 import { discoverOpenApi, toolsFromOpenApi } from "./discovery.js";
 import { browserLogin } from "./login.js";
 import type { LoginResult } from "./login.js";
+import { parseOAuthConfigOptions } from "./oauth-config.js";
 import { integrationPrompt } from "./prompt.js";
 import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./selection.js";
-import type { Config, ToolDefinition } from "./types.js";
+import type { Config, PassthroughConfigInput, ToolDefinition } from "./types.js";
 
 const program = new Command();
 program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.1");
@@ -258,6 +259,54 @@ program.command("credentials")
       console.log(JSON.stringify({ project: confirmedProject.subdomain, headerName: credential.headerName ?? "Authorization" }));
     } else {
       console.log(`${pc.green("✓")} Updated the outbound credential for ${pc.bold(confirmedProject.subdomain)}`);
+    }
+  });
+
+program.command("oauth-config")
+  .description("Configure OAuth/JWT passthrough auth so a project's own end-users authenticate through their identity provider")
+  .argument("<project>", "project subdomain")
+  .option("--issuer <url>", "expected JWT issuer")
+  .option("--jwks-url <url>", "JWKS endpoint used to verify tokens")
+  .option("--audience <value>", "expected JWT audience")
+  .option("--login-mode <mode>", '"oauth" or "custom_handoff"')
+  .option("--authorize-url <url>", "identity provider authorize URL (--login-mode oauth)")
+  .option("--token-url <url>", "identity provider token URL (--login-mode oauth)")
+  .option("--client-id <value>", "OAuth client id issued for uivoid (--login-mode oauth)")
+  .option("--client-secret <value>", "OAuth client secret issued for uivoid (--login-mode oauth)")
+  .option("--scope <value>", 'additional OAuth scope, e.g. "offline_access" (--login-mode oauth)')
+  .option("--handoff-url <url>", "page that hands a signed-in user's token to uivoid (--login-mode custom_handoff)")
+  .option("--token <token>", "personal access token (or use UIVOID_TOKEN)")
+  .option("--json", "print a machine-readable JSON object instead of formatted text")
+  .action(async (projectName: string, options: {
+    issuer?: string; jwksUrl?: string; audience?: string; loginMode?: string;
+    authorizeUrl?: string; tokenUrl?: string; clientId?: string; clientSecret?: string;
+    scope?: string; handoffUrl?: string; token?: string; json?: boolean;
+  }) => {
+    let passthroughConfig: PassthroughConfigInput | undefined;
+    try {
+      passthroughConfig = parseOAuthConfigOptions(options);
+    } catch (error) {
+      program.error((error as Error).message);
+    }
+    passthroughConfig = passthroughConfig!;
+
+    const config = await authenticatedConfig(options.token);
+    const api = new UivoidApi(config);
+    const { projects } = await api.listProjects();
+    const project = projects.find((candidate) => candidate.subdomain === projectName);
+    if (!project) program.error(`No project named ${JSON.stringify(projectName)} in your organization. Run \`uivoid whoami\` to confirm you're signed in to the right account.`);
+    const confirmedProject = project!;
+
+    await api.updateProject(confirmedProject.id, { auth_mode: "oauth_passthrough" });
+    await api.setPassthroughConfig(confirmedProject.id, passthroughConfig);
+
+    const callbackUrl = `${new URL(config.apiUrl).origin}/oauth/passthrough/callback`;
+
+    if (options.json) {
+      console.log(JSON.stringify({ project: confirmedProject.subdomain, loginMode: passthroughConfig.login_mode, callbackUrl }));
+    } else {
+      console.log(`${pc.green("✓")} Configured passthrough auth for ${pc.bold(confirmedProject.subdomain)}`);
+      console.log(pc.dim(`Register this callback URL with the identity provider as an allowed redirect URI: ${callbackUrl}`));
     }
   });
 

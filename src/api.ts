@@ -1,4 +1,4 @@
-import type { Config, Project, ToolDefinition } from "./types.js";
+import type { Config, PassthroughConfig, PassthroughConfigInput, Project, ToolDefinition } from "./types.js";
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -46,11 +46,15 @@ export class UivoidApi {
     return this.request("api/projects", { method: "POST", body: JSON.stringify({ subdomain }) });
   }
 
-  activateProject(projectId: string): Promise<Project> {
+  updateProject(projectId: string, patch: Record<string, unknown>): Promise<Project> {
     return this.request(`api/projects/${projectId}`, {
       method: "PATCH",
-      body: JSON.stringify({ status: "active" }),
+      body: JSON.stringify(patch),
     });
+  }
+
+  activateProject(projectId: string): Promise<Project> {
+    return this.updateProject(projectId, { status: "active" });
   }
 
   createKey(projectId: string, credential?: { secret: string; headerName?: string }): Promise<{ id: string; key: string }> {
@@ -78,6 +82,13 @@ export class UivoidApi {
     return this.request(`api/projects/${projectId}/tools`, {
       method: "POST",
       body: JSON.stringify(tool),
+    });
+  }
+
+  setPassthroughConfig(projectId: string, config: PassthroughConfigInput): Promise<PassthroughConfig> {
+    return this.request(`api/projects/${projectId}/passthrough-config`, {
+      method: "PATCH",
+      body: JSON.stringify(config),
     });
   }
 }

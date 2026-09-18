@@ -26,6 +26,32 @@ export interface ToolDefinition {
   is_active: boolean;
 }
 
+export interface PassthroughConfigInput {
+  issuer: string;
+  jwks_url: string;
+  audience: string;
+  login_mode: "oauth" | "custom_handoff";
+  target_authorize_url?: string;
+  target_token_url?: string;
+  target_client_id?: string;
+  target_client_secret?: string;
+  target_scope?: string;
+  handoff_url?: string;
+}
+
+export interface PassthroughConfig {
+  issuer: string;
+  jwks_url: string;
+  audience: string;
+  login_mode: "oauth" | "custom_handoff";
+  target_authorize_url?: string;
+  target_token_url?: string;
+  target_client_id?: string;
+  has_target_client_secret?: boolean;
+  target_scope?: string;
+  handoff_url?: string;
+}
+
 export interface OpenApiDocument {
   openapi?: string;
   swagger?: string;
