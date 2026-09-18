@@ -19,7 +19,7 @@ import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./sel
 import type { Config, ToolDefinition } from "./types.js";
 
 const program = new Command();
-program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.1.0");
+program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.0");
 
 async function authenticatedConfig(tokenOption?: string) {
   const config = await readConfig();
