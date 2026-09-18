@@ -53,10 +53,13 @@ export class UivoidApi {
     });
   }
 
-  createKey(projectId: string): Promise<{ id: string; key: string }> {
+  createKey(projectId: string, credential?: { secret: string; headerName?: string }): Promise<{ id: string; key: string }> {
     return this.request(`api/projects/${projectId}/keys`, {
       method: "POST",
-      body: JSON.stringify({ direction: "outbound", scopes: [], secret_type: "bearer" }),
+      body: JSON.stringify({
+        direction: "outbound", scopes: [], secret_type: "bearer",
+        ...(credential ? { secret: credential.secret, ...(credential.headerName ? { header_name: credential.headerName } : {}) } : {}),
+      }),
     });
   }
 

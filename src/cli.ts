@@ -9,10 +9,13 @@ import ora from "ora";
 import pc from "picocolors";
 import { UivoidApi, ApiError } from "./api.js";
 import { readConfig, writeConfig } from "./config.js";
+import { parseCredentialOption } from "./credentials.js";
+import type { OutboundCredential } from "./credentials.js";
 import { discoverOpenApi, toolsFromOpenApi } from "./discovery.js";
 import { browserLogin } from "./login.js";
 import type { LoginResult } from "./login.js";
 import { integrationPrompt } from "./prompt.js";
+import { resolveNonInteractiveSelection } from "./selection.js";
 import type { Config, ToolDefinition } from "./types.js";
 
 const program = new Command();
@@ -54,11 +57,18 @@ program.command("logout").description("Remove the locally stored UIvoid session"
   console.log(`${pc.green("✓")} Logged out locally`);
 });
 
-program.command("whoami").description("Show the current UIvoid account").action(async () => {
-  const config = await authenticatedConfig();
-  const me = await new UivoidApi(config).me();
-  console.log(`${me.email}${me.organizations[0] ? ` · ${me.organizations[0].name}` : ""}`);
-});
+program.command("whoami")
+  .description("Show the current UIvoid account")
+  .option("--json", "print a machine-readable JSON object instead of formatted text")
+  .action(async ({ json }: { json?: boolean }) => {
+    const config = await authenticatedConfig();
+    const me = await new UivoidApi(config).me();
+    if (json) {
+      console.log(JSON.stringify({ email: me.email, organization: me.organizations[0] ?? null }));
+    } else {
+      console.log(`${me.email}${me.organizations[0] ? ` · ${me.organizations[0].name}` : ""}`);
+    }
+  });
 
 program.command("create")
   .description("Create a project and map an existing OpenAPI surface")
@@ -66,15 +76,42 @@ program.command("create")
   .option("--base-url <url>", "base URL of the existing API")
   .option("--openapi <url>", "OpenAPI URL or path")
   .option("--token <token>", "personal access token (or use UIVOID_TOKEN)")
-  .option("--yes", "accept all discovered endpoints")
+  .option("--auth-key <value>", "static credential your API expects, sent as \"Authorization: Bearer <value>\"")
+  .option("--auth-header <header>", "custom outbound header, formatted \"Header-Name:value\"")
+  .option("--yes", "accept all discovered endpoints, including destructive ones")
+  .option("--include <names>", "comma-separated tool names to expose non-interactively")
+  .option("--exclude-destructive", "expose all discovered endpoints except destructive (DELETE) ones")
   .option("--no-discover", "create the project without mapping endpoints")
-  .action(async (providedName: string | undefined, options: { baseUrl?: string; openapi?: string; token?: string; yes?: boolean; discover: boolean }) => {
+  .option("--json", "print a single machine-readable JSON object instead of formatted text")
+  .action(async (providedName: string | undefined, options: {
+    baseUrl?: string; openapi?: string; token?: string; authKey?: string; authHeader?: string;
+    yes?: boolean; include?: string; excludeDestructive?: boolean; discover: boolean; json?: boolean;
+  }) => {
+    let credential: OutboundCredential | undefined;
+    try {
+      credential = parseCredentialOption(options);
+    } catch (error) {
+      program.error((error as Error).message);
+    }
+
+    const interactive = Boolean(process.stdin.isTTY);
     const config = await authenticatedConfig(options.token);
     const api = new UivoidApi(config);
-    const name = providedName ?? await input({ message: "Project name", validate: (value) => value.trim() ? true : "Enter a project name" });
+    const me = await api.me();
+    const account = `${me.email}${me.organizations[0] ? ` · ${me.organizations[0].name}` : ""}`;
+    if (!options.json) console.log(pc.dim(`Signed in as ${account}`));
+
+    let name = providedName;
+    if (!name) {
+      if (!interactive) program.error("Project name is required when running non-interactively (no TTY detected). Pass it as an argument: `uivoid create <name> ...`.");
+      name = await input({ message: "Project name", validate: (value) => value.trim() ? true : "Enter a project name" });
+    }
     const subdomain = name.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
     let baseUrl = options.baseUrl;
-    if (options.discover && !baseUrl) baseUrl = await input({ message: "Existing API base URL", validate: validHttpUrl });
+    if (options.discover && !baseUrl) {
+      if (!interactive) program.error("Base URL is required when running non-interactively (no TTY detected). Pass it with --base-url <url>, or use --no-discover to create the project without mapping endpoints.");
+      baseUrl = await input({ message: "Existing API base URL", validate: validHttpUrl });
+    }
     if (baseUrl) baseUrl = normalizeUrl(baseUrl);
 
     const createSpinner = ora("Creating project").start();
@@ -83,21 +120,37 @@ program.command("create")
 
     let mapped: ToolDefinition[] = [];
     let setupComplete = !options.discover;
+    let generatedKey: string | undefined;
     if (options.discover && baseUrl) {
       const discoverySpinner = ora("Discovering API endpoints").start();
       try {
         const discovered = await discoverOpenApi(baseUrl, options.openapi);
         discoverySpinner.succeed(`Found OpenAPI document at ${discovered.url}`);
-        const key = await api.createKey(project.id);
+        const key = await api.createKey(project.id, credential);
+        if (!credential) generatedKey = key.key;
         const candidates = toolsFromOpenApi(discovered.document, baseUrl, key.id);
         if (!candidates.length) throw new Error("The OpenAPI document contains no supported operations.");
-        const selected = options.yes ? candidates.map((tool) => tool.name) : await checkbox({
-          message: "Select endpoints to expose",
-          choices: candidates.map((tool) => ({ name: `${tool.name} ${pc.dim(`${tool.method} · ${tool.scope}`)}`, value: tool.name, checked: tool.scope !== "destructive" })),
-          required: true,
-        });
+
+        let nonInteractive: string[] | undefined;
+        try {
+          nonInteractive = resolveNonInteractiveSelection(candidates, options);
+        } catch (error) {
+          program.error((error as Error).message);
+        }
+        let selected: string[];
+        if (nonInteractive) {
+          selected = nonInteractive;
+        } else if (interactive) {
+          selected = await checkbox({
+            message: "Select endpoints to expose",
+            choices: candidates.map((tool) => ({ name: `${tool.name} ${pc.dim(`${tool.method} · ${tool.scope}`)}`, value: tool.name, checked: tool.scope !== "destructive" })),
+            required: true,
+          });
+        } else {
+          program.error("No interactive terminal detected. Use --yes, --include <tool1,tool2,...>, --exclude-destructive, or --no-discover instead.");
+        }
         mapped = candidates.filter((tool) => selected.includes(tool.name));
-        if (!options.yes && mapped.some((tool) => tool.scope === "destructive")) {
+        if (!nonInteractive && mapped.some((tool) => tool.scope === "destructive")) {
           const approved = await confirm({ message: "Expose the selected destructive operations?", default: false });
           if (!approved) mapped = mapped.filter((tool) => tool.scope !== "destructive");
         }
@@ -115,10 +168,32 @@ program.command("create")
       const activateSpinner = ora("Activating MCP server").start();
       await api.activateProject(project.id);
       activateSpinner.succeed("MCP server active");
+    }
+
+    if (options.json) {
+      console.log(JSON.stringify({
+        account, project: project.subdomain, status: setupComplete ? "active" : "created",
+        mcpUrl: setupComplete ? project.mcp_url : null, toolCount: mapped.length,
+        scopes: {
+          read: mapped.filter((tool) => tool.scope === "read").length,
+          write: mapped.filter((tool) => tool.scope === "write").length,
+          destructive: mapped.filter((tool) => tool.scope === "destructive").length,
+        },
+        ...(generatedKey ? { outboundKey: generatedKey } : {}),
+      }));
+      return;
+    }
+
+    if (setupComplete) {
       console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
       console.log(pc.dim(`Auth: organization login · ${mapped.length} tool${mapped.length === 1 ? "" : "s"} mapped`));
     } else {
       console.log(`\n${pc.yellow(pc.bold("Created, not active"))}  Endpoint setup must finish before ${project.mcp_url} can accept connections.`);
+    }
+    if (generatedKey) {
+      console.log(`\n${pc.yellow("Outbound credential (shown once, save it now)")}  ${generatedKey}`);
+      console.log(pc.dim(`Configure your API to accept this as: Authorization: Bearer ${generatedKey}`));
+      console.log(pc.dim("Target API already has its own key instead? `uivoid credentials <project> --auth-key <value>` sets it explicitly."));
     }
   });
 
