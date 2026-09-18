@@ -201,6 +201,38 @@ program.command("create")
     }
   });
 
+program.command("credentials")
+  .description("Set or update the outbound credential uivoid uses when calling a project's API")
+  .argument("<project>", "project subdomain")
+  .option("--auth-key <value>", "static credential your API expects, sent as \"Authorization: Bearer <value>\"")
+  .option("--auth-header <header>", "custom outbound header, formatted \"Header-Name:value\"")
+  .option("--token <token>", "personal access token (or use UIVOID_TOKEN)")
+  .option("--json", "print a machine-readable JSON object instead of formatted text")
+  .action(async (projectName: string, options: { authKey?: string; authHeader?: string; token?: string; json?: boolean }) => {
+    let credential: OutboundCredential | undefined;
+    try {
+      credential = parseCredentialOption(options);
+    } catch (error) {
+      program.error((error as Error).message);
+    }
+    if (!credential) program.error('Pass --auth-key <value> or --auth-header "Header-Name:value".');
+    credential = credential!;
+
+    const config = await authenticatedConfig(options.token);
+    const api = new UivoidApi(config);
+    const { projects } = await api.listProjects();
+    const project = projects.find((candidate) => candidate.subdomain === projectName);
+    if (!project) program.error(`No project named ${JSON.stringify(projectName)} in your organization. Run \`uivoid whoami\` to confirm you're signed in to the right account.`);
+    const confirmedProject = project!;
+
+    await api.setOutboundCredential(confirmedProject.id, credential.secret, credential.headerName);
+    if (options.json) {
+      console.log(JSON.stringify({ project: confirmedProject.subdomain, headerName: credential.headerName ?? "Authorization" }));
+    } else {
+      console.log(`${pc.green("✓")} Updated the outbound credential for ${pc.bold(confirmedProject.subdomain)}`);
+    }
+  });
+
 program.command("prompt").description("Print the agent prompt for integrating the current project").action(() => console.log(integrationPrompt));
 
 program.command("skill")

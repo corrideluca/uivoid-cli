@@ -63,6 +63,17 @@ export class UivoidApi {
     });
   }
 
+  listProjects(): Promise<{ projects: Project[] }> {
+    return this.request("api/projects");
+  }
+
+  setOutboundCredential(projectId: string, secret: string, headerName?: string): Promise<{ id: string; header_name: string }> {
+    return this.request(`api/projects/${projectId}/credentials`, {
+      method: "PATCH",
+      body: JSON.stringify({ secret, ...(headerName ? { header_name: headerName } : {}) }),
+    });
+  }
+
   createTool(projectId: string, tool: ToolDefinition): Promise<{ id: string; name: string }> {
     return this.request(`api/projects/${projectId}/tools`, {
       method: "POST",
