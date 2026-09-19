@@ -53,6 +53,10 @@ export class UivoidApi {
     });
   }
 
+  deleteProject(projectId: string): Promise<void> {
+    return this.request(`api/projects/${projectId}`, { method: "DELETE" });
+  }
+
   activateProject(projectId: string): Promise<Project> {
     return this.updateProject(projectId, { status: "active" });
   }

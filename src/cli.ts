@@ -20,7 +20,7 @@ import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./sel
 import type { Config, PassthroughConfigInput, ToolDefinition } from "./types.js";
 
 const program = new Command();
-program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.1");
+program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.2");
 
 async function authenticatedConfig(tokenOption?: string) {
   const config = await readConfig();
@@ -142,87 +142,96 @@ program.command("create")
     const project = await api.createProject(subdomain);
     createSpinner.succeed(`Created ${pc.bold(project.subdomain)}`);
 
-    let created: ToolDefinition[] = [];
-    let setupComplete = !options.discover;
-    let generatedKey: string | undefined;
-    let mappingError: string | undefined;
-    if (options.discover && baseUrl) {
-      let mapped: ToolDefinition[] = [];
-      const discoverySpinner = ora("Discovering API endpoints").start();
+    async function rollback(reason: string): Promise<void> {
+      const rollbackSpinner = ora("Rolling back incomplete setup").start();
       try {
-        const discovered = await discoverOpenApi(baseUrl, options.openapi);
-        discoverySpinner.succeed(`Found OpenAPI document at ${discovered.url}`);
-        const key = await api.createKey(project.id, credential);
-        if (!credential) generatedKey = key.key;
-        const candidates = toolsFromOpenApi(discovered.document, baseUrl, key.id);
-        if (!candidates.length) throw new Error("The OpenAPI document contains no supported operations.");
-
-        let nonInteractive: string[] | undefined;
-        try {
-          nonInteractive = resolveNonInteractiveSelection(candidates, options);
-        } catch (error) {
-          if (generatedKey) console.warn(`${pc.yellow("!")} Outbound credential generated but not yet displayed — save it now: ${generatedKey}`);
-          program.error((error as Error).message);
-        }
-        let selected: string[];
-        if (nonInteractive) {
-          selected = nonInteractive;
-        } else if (interactive) {
-          selected = await checkbox({
-            message: "Select endpoints to expose",
-            choices: candidates.map((tool) => ({ name: `${tool.name} ${pc.dim(`${tool.method} · ${tool.scope}`)}`, value: tool.name, checked: tool.scope !== "destructive" })),
-            required: true,
-          });
-        } else {
-          program.error("No interactive terminal detected. Use --yes, --include <tool1,tool2,...>, --exclude-destructive, or --no-discover instead.");
-        }
-        mapped = candidates.filter((tool) => selected.includes(tool.name));
-        if (!nonInteractive && mapped.some((tool) => tool.scope === "destructive")) {
-          const approved = await confirm({ message: "Expose the selected destructive operations?", default: false });
-          if (!approved) mapped = mapped.filter((tool) => tool.scope !== "destructive");
-        }
-        const mappingSpinner = ora(`Mapping ${mapped.length} endpoints`).start();
-        for (const tool of mapped) {
-          await api.createTool(project.id, tool);
-          created.push(tool);
-        }
-        mappingSpinner.succeed(`Mapped ${mapped.length} scoped tools`);
-        setupComplete = true;
-      } catch (error) {
-        discoverySpinner.stop();
-        mappingError = (error as Error).message;
-        console.warn(`${pc.yellow("!")} Project created, but endpoint discovery did not finish: ${mappingError}`);
-        process.exitCode = 1;
+        await api.deleteProject(project.id);
+        rollbackSpinner.succeed(`Rolled back ${pc.bold(project.subdomain)} — nothing was left behind`);
+      } catch (rollbackError) {
+        rollbackSpinner.fail(`Created ${project.subdomain} but could not remove it automatically: ${(rollbackError as Error).message}`);
+        console.warn(pc.dim(`Remove it manually before retrying with this name: it already exists in your org.`));
       }
+      if (options.json) {
+        console.log(JSON.stringify({
+          account, project: project.subdomain, status: "failed", mcpUrl: null,
+          toolCount: 0, scopes: { read: 0, write: 0, destructive: 0 }, outboundKey: null, error: reason,
+        }));
+      } else {
+        console.warn(`${pc.yellow("!")} create failed: ${reason}`);
+      }
+      process.exitCode = 1;
     }
 
-    if (setupComplete) {
+    const created: ToolDefinition[] = [];
+    let generatedKey: string | undefined;
+
+    try {
+      if (options.discover && baseUrl) {
+        let mapped: ToolDefinition[] = [];
+        const discoverySpinner = ora("Discovering API endpoints").start();
+        try {
+          const discovered = await discoverOpenApi(baseUrl, options.openapi);
+          discoverySpinner.succeed(`Found OpenAPI document at ${discovered.url}`);
+          const key = await api.createKey(project.id, credential);
+          if (!credential) generatedKey = key.key;
+          const candidates = toolsFromOpenApi(discovered.document, baseUrl, key.id);
+          if (!candidates.length) throw new Error("The OpenAPI document contains no supported operations.");
+
+          const nonInteractive = resolveNonInteractiveSelection(candidates, options);
+          let selected: string[];
+          if (nonInteractive) {
+            selected = nonInteractive;
+          } else if (interactive) {
+            selected = await checkbox({
+              message: "Select endpoints to expose",
+              choices: candidates.map((tool) => ({ name: `${tool.name} ${pc.dim(`${tool.method} · ${tool.scope}`)}`, value: tool.name, checked: tool.scope !== "destructive" })),
+              required: true,
+            });
+          } else {
+            throw new Error("No interactive terminal detected. Use --yes, --include <tool1,tool2,...>, --exclude-destructive, or --no-discover instead.");
+          }
+          mapped = candidates.filter((tool) => selected.includes(tool.name));
+          if (!nonInteractive && mapped.some((tool) => tool.scope === "destructive")) {
+            const approved = await confirm({ message: "Expose the selected destructive operations?", default: false });
+            if (!approved) mapped = mapped.filter((tool) => tool.scope !== "destructive");
+          }
+          const mappingSpinner = ora(`Mapping ${mapped.length} endpoints`).start();
+          for (const tool of mapped) {
+            await api.createTool(project.id, tool);
+            created.push(tool);
+          }
+          mappingSpinner.succeed(`Mapped ${mapped.length} scoped tools`);
+        } catch (error) {
+          discoverySpinner.stop();
+          throw error;
+        }
+      }
+
       const activateSpinner = ora("Activating MCP server").start();
       await api.activateProject(project.id);
       activateSpinner.succeed("MCP server active");
+    } catch (error) {
+      await rollback((error as Error).message);
+      return;
     }
 
     if (options.json) {
       console.log(JSON.stringify({
-        account, project: project.subdomain, status: setupComplete ? "active" : "created",
-        mcpUrl: setupComplete ? project.mcp_url : null, toolCount: created.length,
+        account, project: project.subdomain, status: "active",
+        mcpUrl: project.mcp_url, toolCount: created.length,
         scopes: {
           read: created.filter((tool) => tool.scope === "read").length,
           write: created.filter((tool) => tool.scope === "write").length,
           destructive: created.filter((tool) => tool.scope === "destructive").length,
         },
         outboundKey: generatedKey ?? null,
-        error: mappingError ?? null,
+        error: null,
       }));
       return;
     }
 
-    if (setupComplete) {
-      console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
-      console.log(pc.dim(`Auth: organization login · ${created.length} tool${created.length === 1 ? "" : "s"} mapped`));
-    } else {
-      console.log(`\n${pc.yellow(pc.bold("Created, not active"))}  Endpoint setup must finish before ${project.mcp_url} can accept connections.`);
-    }
+    console.log(`\n${pc.green(pc.bold("Ready"))}  ${pc.cyan(project.mcp_url)}`);
+    console.log(pc.dim(`Auth: organization login · ${created.length} tool${created.length === 1 ? "" : "s"} mapped`));
     if (generatedKey) {
       console.log(`\n${pc.yellow("Outbound credential (shown once, save it now)")}  ${generatedKey}`);
       console.log(pc.dim(`Configure your API to accept this as: Authorization: Bearer ${generatedKey}`));
