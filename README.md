@@ -49,11 +49,23 @@ npx uivoid credentials my-app --auth-key sk_live_...
 
 If you pass neither flag at `create` time, uivoid generates a credential for you and prints it once — save it immediately, since it isn't shown again.
 
+## Hosted MCP domain and existing API hosting
+
+Each project gets a dedicated `https://<project>.uivoid.app/mcp` subdomain. UIvoid hosts the MCP gateway; your existing API can stay self-hosted wherever UIvoid can reach it. The CLI does not purchase a domain or deploy the gateway onto your infrastructure.
+
+Manage projects at [portal.uivoid.app](https://portal.uivoid.app). In addition to static outbound credentials, `npx uivoid oauth-config --help` describes per-user OAuth/JWT passthrough configuration. Register the callback URL printed by that command with your identity provider and test login before treating the integration as ready.
+
 ## Agent prompt and skill
 
 `npx uivoid prompt` prints a provider-neutral prompt that Claude, Codex, or another coding agent can use to prepare the current project and run the integration.
 
-The npm package also ships an optional `SKILL.md` for clients that support agent skills. Install it into Codex's personal skills directory with:
+The [UIvoid skill](skill/uivoid/SKILL.md) guides API discovery, missing `BASE_URL` questions, endpoint selection, dedicated subdomain provisioning, authentication, and verification. Install the GitHub version with the skills CLI:
+
+```bash
+npx skills add corrideluca/uivoid-cli --skill uivoid
+```
+
+The npm package also ships an optional `SKILL.md` for clients that support agent skills. Its bundled copy follows the installed npm release; use the GitHub command above for the latest skill. Install it into Codex's personal skills directory with:
 
 ```bash
 npx uivoid skill --install
