@@ -15,9 +15,11 @@ import { discoverOpenApi, toolsFromOpenApi } from "./discovery.js";
 import { browserLogin } from "./login.js";
 import type { LoginResult } from "./login.js";
 import { parseOAuthConfigOptions } from "./oauth-config.js";
+import { defaultOrg, resolveOrg, toStoredOrg } from "./orgs.js";
 import { integrationPrompt } from "./prompt.js";
 import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./selection.js";
-import type { Config, PassthroughConfigInput, ToolDefinition } from "./types.js";
+import { registerTeamCommands } from "./team-commands.js";
+import type { Config, PassthroughConfigInput, Project, ToolDefinition } from "./types.js";
 
 const program = new Command();
 program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.2");
@@ -50,7 +52,8 @@ program.command("login")
     if (result.organization) next.organization = result.organization;
     const me = await new UivoidApi(next).me();
     next.email = me.email;
-    if (me.organizations[0]) next.organization = me.organizations[0];
+    const current = defaultOrg(me.organizations, next.organization) ?? me.organizations[0];
+    if (current) next.organization = toStoredOrg(current);
     await writeConfig(next);
     console.log(`${pc.green("✓")} Logged in as ${pc.bold(me.email)}`);
   });
@@ -67,10 +70,12 @@ program.command("whoami")
   .action(async ({ json }: { json?: boolean }) => {
     const config = await authenticatedConfig();
     const me = await new UivoidApi(config).me();
+    const current = defaultOrg(me.organizations, config.organization);
     if (json) {
-      console.log(JSON.stringify({ email: me.email, organization: me.organizations[0] ?? null }));
+      console.log(JSON.stringify({ email: me.email, organization: current ?? null, role: current?.role ?? null, organizations: me.organizations }));
     } else {
-      console.log(`${me.email}${me.organizations[0] ? ` · ${me.organizations[0].name}` : ""}`);
+      console.log(`${me.email}${current ? ` · ${current.name} (${current.role})` : ""}`);
+      if (me.organizations.length > 1) console.log(pc.dim(`Member of ${me.organizations.length} organizations — \`uivoid org list\` to see them, --org to pick one.`));
     }
   });
 
@@ -80,6 +85,7 @@ program.command("create")
   .option("--base-url <url>", "base URL of the existing API")
   .option("--openapi <url>", "OpenAPI URL or path")
   .option("--token <token>", "personal access token (or use UIVOID_TOKEN)")
+  .option("--org <org>", "organization to create the project in (slug or id; defaults to the one set with `uivoid org use`)")
   .option("--auth-key <value>", "static credential your API expects, sent as \"Authorization: Bearer <value>\"")
   .option("--auth-header <header>", "custom outbound header, formatted \"Header-Name:value\"")
   .option("--yes", "accept all discovered endpoints, including destructive ones")
@@ -88,7 +94,7 @@ program.command("create")
   .option("--no-discover", "create the project without mapping endpoints")
   .option("--json", "print a single machine-readable JSON object instead of formatted text")
   .action(async (providedName: string | undefined, options: {
-    baseUrl?: string; openapi?: string; token?: string; authKey?: string; authHeader?: string;
+    baseUrl?: string; openapi?: string; token?: string; org?: string; authKey?: string; authHeader?: string;
     yes?: boolean; include?: string; excludeDestructive?: boolean; discover: boolean; json?: boolean;
   }) => {
     let credential: OutboundCredential | undefined;
@@ -122,7 +128,8 @@ program.command("create")
     const config = await authenticatedConfig(options.token);
     const api = new UivoidApi(config);
     const me = await api.me();
-    const account = { email: me.email, organization: me.organizations[0] ?? null };
+    const organization = resolveOrg(me.organizations, options.org, config.organization);
+    const account = { email: me.email, organization };
     if (!options.json) console.log(pc.dim(`Signed in as ${me.email}${account.organization ? ` · ${account.organization.name}` : ""}`));
 
     let name = providedName;
@@ -139,7 +146,13 @@ program.command("create")
     if (baseUrl) baseUrl = normalizeUrl(baseUrl);
 
     const createSpinner = ora("Creating project").start();
-    const project = await api.createProject(subdomain);
+    let project: Project;
+    try {
+      project = await api.createProject(subdomain, organization.id);
+    } catch (error) {
+      createSpinner.fail(`Could not create ${subdomain} in ${organization.name}`);
+      throw error;
+    }
     createSpinner.succeed(`Created ${pc.bold(project.subdomain)}`);
 
     async function rollback(reason: string): Promise<void> {
@@ -343,6 +356,8 @@ function normalizeUrl(value: string): string {
   if (validHttpUrl(candidate) !== true) throw new Error("Base URL must be an HTTP(S) URL.");
   return candidate.replace(/\/$/, "");
 }
+
+registerTeamCommands(program, authenticatedConfig);
 
 program.configureOutput({ outputError: (text, write) => write(pc.red(text)) });
 program.parseAsync().catch((error: unknown) => {
