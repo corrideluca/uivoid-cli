@@ -25,10 +25,19 @@ Auth: organization login · 9 tools mapped
 ```bash
 npx uivoid login
 npx uivoid whoami [--json]
+npx uivoid org list [--json]
+npx uivoid org use <slug>
+npx uivoid team list [--org SLUG] [--json]
+npx uivoid team invite <email> [--role member|admin|owner] [--org SLUG] [--json]
+npx uivoid team revoke <email-or-invite-id> [--org SLUG]
+npx uivoid team role <email> <owner|admin|member> [--org SLUG]
+npx uivoid team remove <email> [--org SLUG] [--yes]
+npx uivoid team leave [--org SLUG] [--yes]
+npx uivoid invite accept <link> [--use] [--json]
 npx uivoid create [name] [--base-url URL] [--openapi URL] [--yes]
 npx uivoid create [name] [--auth-key VALUE] [--auth-header "Header-Name:value"]
 npx uivoid create [name] [--include tool1,tool2,...] [--exclude-destructive] [--json]
-npx uivoid create [name] --no-discover
+npx uivoid create [name] [--org SLUG] --no-discover
 npx uivoid credentials <project> [--auth-key VALUE] [--auth-header "Header-Name:value"]
 npx uivoid prompt
 npx uivoid skill [--install]
@@ -38,6 +47,14 @@ npx uivoid logout
 `create` discovers `/openapi.json`, `/api/openapi.json`, or `/swagger.json`. Use `--openapi` for another location. GET operations default to `read`, POST/PUT/PATCH to `write`, and DELETE to `destructive`; the interactive review keeps destructive tools unselected by default.
 
 For CI, provide `UIVOID_TOKEN` and one non-interactive endpoint-selection flag: `--yes` (accept everything, including destructive), `--include tool1,tool2,...` (an explicit allowlist), or `--exclude-destructive` (everything except DELETE-derived tools). If none of those is passed and the CLI can't detect a real interactive terminal — or `--json` is set, since an interactive prompt would otherwise write to stdout ahead of the JSON line — it prints a clear error explaining which flag to add, instead of hanging waiting for input. `UIVOID_API_URL` and `UIVOID_PORTAL_URL` override the production services for local development. Credentials are stored at `~/.config/uivoid/config.json` with mode `0600`.
+
+### Teams and organizations
+
+An account can belong to several organizations. Commands that act on one take `--org <slug>`; without it they use the default set by `uivoid org use <slug>` (or your only organization). `uivoid whoami` shows the current default and your role.
+
+Roles: **owner** (everything, including roles and owner invites), **admin** (manage projects, keys and credentials; invite members and admins) and **member** (read-only in the control plane; can use the organization's MCP servers with read and write tools, but not destructive ones).
+
+`uivoid team invite teammate@company.com --role admin` prints a one-time invite link. Send it yourself — it works only for that email address and expires after 7 days; inviting the same address again replaces it. The teammate runs `uivoid invite accept <link>` (or opens the link in the portal).
 
 ### Outbound credentials
 
@@ -77,10 +94,13 @@ The CLI uses these control-plane endpoints:
 
 - `GET /api/auth/me`
 - `GET /api/projects`
-- `POST /api/projects`
+- `POST /api/projects` (accepts `organization_id`)
 - `POST /api/projects/:id/keys`
 - `POST /api/projects/:id/tools`
 - `PATCH /api/projects/:id/credentials`
+- `GET /api/orgs/:id/members`, `PATCH|DELETE /api/orgs/:id/members/:userId`
+- `GET|POST /api/orgs/:id/invitations`, `DELETE /api/orgs/:id/invitations/:inviteId`
+- `POST /api/invitations/:token/accept`
 
 Browser login uses `/cli/auth?callback=...&state=...` to return a revocable personal access token to a loopback callback. `uivoid login --token` and `UIVOID_TOKEN` are also available for non-interactive environments.
 

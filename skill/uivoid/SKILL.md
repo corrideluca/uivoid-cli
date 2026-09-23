@@ -20,7 +20,7 @@ Requires Node.js 20+, an HTTP API reachable by the UIvoid service, and a UIvoid 
 
 ## 2. Establish account and auth mode
 
-Run `npx uivoid whoami` and report the account/org. If there is no session, use `npx uivoid login` for browser login through the portal. Resolve a wrong or ambiguous account before provisioning. Never request passwords in the conversation; use existing secret configuration or the user's local secret-entry workflow for credentials. Do not echo secrets into reports or commit them.
+Run `npx uivoid whoami` and report the account/org. If there is no session, use `npx uivoid login` for browser login through the portal. Resolve a wrong or ambiguous account before provisioning. If the account belongs to several organizations, confirm which one the project belongs to and pass `--org <slug>` to `uivoid create` (`npx uivoid org list` shows them). Creating projects requires the owner or admin role in that organization. Never request passwords in the conversation; use existing secret configuration or the user's local secret-entry workflow for credentials. Do not echo secrets into reports or commit them.
 
 Separate CLI account login, MCP client authentication, and the credential forwarded to the existing API:
 
