@@ -9,6 +9,7 @@ export interface Config {
 export interface Project {
   id: string;
   subdomain: string;
+  organization_id?: string;
   status: string;
   auth_mode: string;
   tools_version: number;
@@ -65,4 +66,32 @@ export interface OpenApiOperation {
   description?: string;
   parameters?: Array<Record<string, unknown>>;
   requestBody?: Record<string, unknown>;
+}
+
+export type Role = "owner" | "admin" | "member";
+
+export type Organization = NonNullable<Config["organization"]>;
+
+export interface Membership extends Organization {
+  role: Role;
+}
+
+export interface Member {
+  user_id: string;
+  email: string;
+  role: Role;
+  joined_at: string;
+}
+
+export interface Invitation {
+  id: string;
+  email: string;
+  role: Role;
+  invited_by: string | null;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface CreatedInvitation extends Invitation {
+  invite_url: string;
 }
