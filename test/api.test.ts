@@ -66,3 +66,25 @@ test("server errors surface the backend message and status", async (t) => {
   await assert.rejects(api.createInvitation("org-1", "x@acme.io", "member"), (error: unknown) =>
     error instanceof ApiError && error.status === 403 && error.message === "your role can't manage invites");
 });
+
+test("column methods use table-scoped routes and exact mutation bodies", async (t) => {
+  const calls = stubFetch(t, 200, { id: "t1", columns: {} });
+  await api.addColumn("p1", "d1", "t1", "priority", { type: "text", required: false });
+  await api.updateColumn("p1", "d1", "t1", "priority", { required: true });
+  await api.updateColumn("p1", "d1", "t1", "priority", { name: "importance", confirm: "priority" });
+  await api.dropColumn("p1", "d1", "t1", "importance", "importance");
+  const base = "https://api.test/api/projects/p1/databases/d1/tables/t1/columns";
+  assert.deepEqual(calls.map(c => [c.method, c.url, c.body]), [
+    ["POST", base, { name: "priority", definition: { type: "text", required: false } }],
+    ["PATCH", `${base}/priority`, { required: true }],
+    ["PATCH", `${base}/priority`, { name: "importance", confirm: "priority" }],
+    ["DELETE", `${base}/importance`, { confirm: "importance" }],
+  ]);
+});
+
+test("column path names are encoded and schema errors remain visible", async (t) => {
+  const calls = stubFetch(t, 400, { error: "Renaming breaks agents; repeat the old name" });
+  await assert.rejects(api.updateColumn("p", "d", "t", "bad/name", { name: "x", confirm: "wrong" }),
+    (error: unknown) => error instanceof ApiError && error.status === 400 && error.message.includes("breaks agents"));
+  assert.equal(calls[0]?.url, "https://api.test/api/projects/p/databases/d/tables/t/columns/bad%2Fname");
+});

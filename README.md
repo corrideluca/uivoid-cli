@@ -144,6 +144,35 @@ Reads/deletes stay available at the hardcoded 500 MB limit; growth is rejected.
 
 Use `db list` and `db table list --db <name>` to discover resources. Database/table
 creation can be retried with the same name/definition. Row inserts are not
-idempotent: inspect results before retrying an ambiguous failure. Schema edits,
-physical database deletion and unrestricted SQL are not supported. Existing tools
-API endpoints manage endpoint descriptions, activation and removal.
+idempotent: inspect results before retrying an ambiguous failure. Unrestricted SQL,
+column type changes, table rename/drop, defaults, indexes and custom constraints
+are not supported. Existing tools API endpoints manage endpoint descriptions,
+activation and removal.
+
+Change an existing table without creating a replacement or re-exposing its tools:
+
+```bash
+uivoid db table add-column products priority --db inventory --type text --project sowe
+uivoid db table set-required products priority --db inventory --required true --project sowe
+uivoid db table rename-column products priority importance --db inventory --confirm priority --project sowe
+uivoid db table drop-column products importance --db inventory --confirm importance --project sowe
+```
+
+| Change | Rule |
+| --- | --- |
+| Add optional column | Allowed; existing rows get NULL |
+| Add required column (`add-column --required`) | Only when the table is empty |
+| Make optional (`set-required --required false`) | Allowed |
+| Make required (`set-required --required true`) | Only when no row contains NULL in that column |
+| Rename column | Requires `--confirm <current-name>`; breaks agents using the old name |
+| Drop column | Requires `--confirm <name>`; permanently deletes that column's data; cannot drop the last column |
+
+All commands accept a table name or UUID. Rename/drop never prompt interactively:
+missing `--confirm` is a CLI error; an incorrect confirmation shows the backend
+error. The existing database quota applies to schema operations.
+
+Existing endpoint IDs, descriptions and routes are preserved, and their input
+schemas are regenerated automatically. Re-list MCP tools afterwards; clients
+that cache schemas may need to reconnect. Identical add-column retries are safe;
+a conflicting definition is rejected. After an interrupted schema change, retry
+the same command to reconcile metadata with PostgreSQL before doing other work.

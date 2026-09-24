@@ -1,5 +1,5 @@
 import type {
-  HostedDatabase, HostedTable, DatabaseToolInput, Config, CreatedInvitation, Invitation, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
+  HostedColumnDefinition, HostedColumnUpdate, HostedDatabase, HostedTable, DatabaseToolInput, Config, CreatedInvitation, Invitation, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
 } from "./types.js";
 
 export class ApiError extends Error {
@@ -147,6 +147,24 @@ export class UivoidApi {
   createTable(projectId: string, databaseId: string, name: string, columns: HostedTable["columns"]): Promise<HostedTable> {
     return this.request(`api/projects/${projectId}/databases/${databaseId}/tables`, {
       method: "POST", body: JSON.stringify({ name, columns }),
+    });
+  }
+
+  addColumn(projectId: string, databaseId: string, tableId: string, name: string, definition: HostedColumnDefinition): Promise<HostedTable> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}/tables/${tableId}/columns`, {
+      method: "POST", body: JSON.stringify({ name, definition }),
+    });
+  }
+
+  updateColumn(projectId: string, databaseId: string, tableId: string, name: string, change: HostedColumnUpdate): Promise<HostedTable> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}/tables/${tableId}/columns/${encodeURIComponent(name)}`, {
+      method: "PATCH", body: JSON.stringify(change),
+    });
+  }
+
+  dropColumn(projectId: string, databaseId: string, tableId: string, name: string, confirm: string): Promise<HostedTable> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}/tables/${tableId}/columns/${encodeURIComponent(name)}`, {
+      method: "DELETE", body: JSON.stringify({ confirm }),
     });
   }
 

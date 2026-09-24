@@ -1,12 +1,13 @@
 import { readFile } from "node:fs/promises";
 import type { Command } from "commander";
 import { UivoidApi } from "./api.js";
-import type { Config, DatabaseToolInput, HostedTable } from "./types.js";
+import type { Config, DatabaseToolInput, HostedColumnDefinition, HostedTable } from "./types.js";
 
 interface Options {
   project: string; token?: string; db?: string; schema?: string;
   operation?: string; path?: string; description?: string; name?: string;
   file?: string; args?: string; json?: boolean;
+  type?: HostedColumnDefinition["type"]; required?: boolean | string; confirm?: string;
 }
 
 export function parseArguments(value: string): Record<string, unknown> {
@@ -35,6 +36,13 @@ export function registerDatabaseCommands(program: Command, authenticatedConfig: 
     const database = databases.find(d => d.id === name || d.name === name);
     if (!database) throw new Error("Database not found in this project");
     return { api, project, database };
+  }
+  async function tableContext(options: Options, name: string) {
+    const ctx = await databaseContext(options, options.db!);
+    const { tables } = await ctx.api.listTables(ctx.project.id, ctx.database.id);
+    const selected = tables.find(t => t.name === name || t.id === name);
+    if (!selected) throw new Error("Table not found in this database");
+    return { ...ctx, table: selected };
   }
   const output = (value: unknown) => console.log(JSON.stringify(value));
 
@@ -65,6 +73,38 @@ export function registerDatabaseCommands(program: Command, authenticatedConfig: 
     .action(async (options: Options) => {
       const { api, project, database } = await databaseContext(options, options.db!);
       output(await api.listTables(project.id, database.id));
+    });
+  common(table.command("add-column <table> <column>").description("Add a column; required columns need an empty table"))
+    .requiredOption("--db <database>", "database name or UUID")
+    .requiredOption("--type <type>", "text, integer, number or boolean")
+    .option("--required", "require a value (table must be empty)", false)
+    .action(async (tableName: string, column: string, options: Options) => {
+      const { api, project, database, table } = await tableContext(options, tableName);
+      output(await api.addColumn(project.id, database.id, table.id, column, {
+        type: options.type!, required: options.required === true,
+      }));
+    });
+  common(table.command("set-required <table> <column>").description("Change nullability; required columns must contain no NULLs"))
+    .requiredOption("--db <database>", "database name or UUID")
+    .requiredOption("--required <boolean>", "true or false")
+    .action(async (tableName: string, column: string, options: Options) => {
+      if (options.required !== "true" && options.required !== "false") throw new Error("--required must be true or false");
+      const { api, project, database, table } = await tableContext(options, tableName);
+      output(await api.updateColumn(project.id, database.id, table.id, column, { required: options.required === "true" }));
+    });
+  common(table.command("rename-column <table> <column> <new-name>").description("Rename a field; breaks agents using its old name"))
+    .requiredOption("--db <database>", "database name or UUID")
+    .requiredOption("--confirm <column>", "repeat the current column name to confirm the breaking change")
+    .action(async (tableName: string, column: string, newName: string, options: Options) => {
+      const { api, project, database, table } = await tableContext(options, tableName);
+      output(await api.updateColumn(project.id, database.id, table.id, column, { name: newName, confirm: options.confirm! }));
+    });
+  common(table.command("drop-column <table> <column>").description("Permanently delete a column and its data"))
+    .requiredOption("--db <database>", "database name or UUID")
+    .requiredOption("--confirm <column>", "repeat the column name to confirm permanent data deletion")
+    .action(async (tableName: string, column: string, options: Options) => {
+      const { api, project, database, table } = await tableContext(options, tableName);
+      output(await api.dropColumn(project.id, database.id, table.id, column, options.confirm!));
     });
   common(db.command("expose <table>").description("Register one described HTTP endpoint and MCP tool"))
     .requiredOption("--db <database>", "database name or UUID")

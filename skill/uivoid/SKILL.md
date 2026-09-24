@@ -103,3 +103,25 @@ plus data; get/delete require id. Never infer bulk-delete authority from a read
 request. A delete operation deletes one row; removing its endpoint does not drop
 the table. Use `db size` to inspect the hardcoded 500 MB limit. Reads/deletes still
 work at the limit. Do not blindly retry inserts after uncertain network failures.
+
+
+For a missing field on an existing hosted table, prefer adding an optional column
+with `uivoid db table add-column <table> <column> --db <db> --type <type> --project <project>`
+over creating a replacement table. `--required` on add-column is only valid for an
+empty table. To require an existing field, fill its NULLs first, then use
+`uivoid db table set-required <table> <column> --db <db> --required true --project <project>`.
+Use `--required false` to make it optional.
+
+Never rename or drop a column unless the user explicitly asked for that change:
+renaming breaks agents using the old name, and dropping permanently deletes data.
+Only then pass `--confirm <current-column-name>` to `db table rename-column` or
+`db table drop-column`. Do not invent confirmation for a request merely to add a
+field. A table must retain at least one user column; its generated `id` cannot be
+changed. Column type changes and raw SQL remain unsupported.
+
+After a schema change, re-list MCP tools. The gateway refreshes definitions by
+version but uses stateless HTTP and does not broadcast `notifications/tools/list_changed`;
+clients that cache tool schemas should reconnect. Existing tools keep their IDs
+and descriptions. If a schema change was interrupted, retry that same operation
+before proceeding; the backend verifies the physical schema before reconciling
+metadata. Do not work around a schema conflict by silently creating a new table.

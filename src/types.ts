@@ -106,11 +106,16 @@ export interface HostedDatabase {
   max_size_bytes: number;
   remaining_bytes: number | null;
 }
+export interface HostedColumnDefinition {
+  type: "text" | "integer" | "number" | "boolean";
+  required?: boolean;
+}
+export type HostedColumnUpdate = { required: boolean } | { name: string; confirm: string };
 export interface HostedTable {
   id: string;
   database_id: string;
   name: string;
-  columns: Record<string, { type: "text" | "integer" | "number" | "boolean"; required?: boolean }>;
+  columns: Record<string, HostedColumnDefinition>;
 }
 export interface DatabaseToolInput {
   kind: "database";
