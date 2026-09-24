@@ -112,3 +112,38 @@ npm test
 npm run build
 node dist/cli.js --help
 ```
+
+## Hosted databases
+
+Requires a backend configured with hosted PostgreSQL support. Database commands
+output JSON and accept `--project <subdomain-or-UUID>` and `--token` (or your stored
+login / `UIVOID_TOKEN`). Database credentials stay on the backend.
+
+```bash
+uivoid create sowe --no-discover --json
+uivoid db create inventory --project sowe
+uivoid db table create products --project sowe --db inventory --schema products.schema.json
+uivoid db expose products --project sowe --db inventory --operation insert --name add_product --path /products --description "Create a product"
+uivoid db expose products --project sowe --db inventory --operation list --name list_products --path /products --description "List products"
+uivoid db call add_product --project sowe --args '{"data":{"name":"Book","stock":5}}'
+uivoid db call list_products --project sowe
+uivoid db size inventory --project sowe
+```
+
+`products.schema.json` contains column definitions:
+
+```json
+{"name":{"type":"text","required":true},"stock":{"type":"integer"}}
+```
+
+Supported types: text, integer, number, boolean. The server creates an `id` UUID.
+Operations are `list`, `get`, `insert`, `update`, `delete`. Get/delete require
+`{"id":"<UUID>"}`; update requires `{"id":"<UUID>","data":{...}}`. Deleting a row
+requires the destructive scope. Use `--file arguments.json` for sensitive values.
+Reads/deletes stay available at the hardcoded 500 MB limit; growth is rejected.
+
+Use `db list` and `db table list --db <name>` to discover resources. Database/table
+creation can be retried with the same name/definition. Row inserts are not
+idempotent: inspect results before retrying an ambiguous failure. Schema edits,
+physical database deletion and unrestricted SQL are not supported. Existing tools
+API endpoints manage endpoint descriptions, activation and removal.

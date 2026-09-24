@@ -95,3 +95,28 @@ export interface Invitation {
 export interface CreatedInvitation extends Invitation {
   invite_url: string;
 }
+
+export interface HostedDatabase {
+  id: string;
+  name: string;
+  project_id: string;
+  organization_id: string;
+  status: string;
+  size_bytes: number | null;
+  max_size_bytes: number;
+  remaining_bytes: number | null;
+}
+export interface HostedTable {
+  id: string;
+  database_id: string;
+  name: string;
+  columns: Record<string, { type: "text" | "integer" | "number" | "boolean"; required?: boolean }>;
+}
+export interface DatabaseToolInput {
+  kind: "database";
+  name: string;
+  description: string;
+  hosted_table_id: string;
+  operation: "list" | "get" | "insert" | "update" | "delete";
+  route: string;
+}

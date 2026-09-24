@@ -1,5 +1,5 @@
 import type {
-  Config, CreatedInvitation, Invitation, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
+  HostedDatabase, HostedTable, DatabaseToolInput, Config, CreatedInvitation, Invitation, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
 } from "./types.js";
 
 export class ApiError extends Error {
@@ -87,7 +87,7 @@ export class UivoidApi {
     });
   }
 
-  createTool(projectId: string, tool: ToolDefinition): Promise<{ id: string; name: string }> {
+  createTool(projectId: string, tool: ToolDefinition | DatabaseToolInput): Promise<{ id: string; name: string }> {
     return this.request(`api/projects/${projectId}/tools`, {
       method: "POST",
       body: JSON.stringify(tool),
@@ -128,4 +128,34 @@ export class UivoidApi {
   acceptInvitation(token: string): Promise<{ organization: Membership }> {
     return this.request(`api/invitations/${encodeURIComponent(token)}/accept`, { method: "POST" });
   }
+  createDatabase(projectId: string, name: string): Promise<HostedDatabase> {
+    return this.request(`api/projects/${projectId}/databases`, { method: "POST", body: JSON.stringify({ name }) });
+  }
+
+  listDatabases(projectId: string): Promise<{ databases: HostedDatabase[] }> {
+    return this.request(`api/projects/${projectId}/databases`);
+  }
+
+  databaseSize(projectId: string, databaseId: string): Promise<HostedDatabase> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}`);
+  }
+
+  listTables(projectId: string, databaseId: string): Promise<{ tables: HostedTable[] }> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}/tables`);
+  }
+
+  createTable(projectId: string, databaseId: string, name: string, columns: HostedTable["columns"]): Promise<HostedTable> {
+    return this.request(`api/projects/${projectId}/databases/${databaseId}/tables`, {
+      method: "POST", body: JSON.stringify({ name, columns }),
+    });
+  }
+
+  listTools(projectId: string): Promise<{ tools: Array<{ id: string; name: string; kind: string; operation: string }> }> {
+    return this.request(`api/projects/${projectId}/tools`);
+  }
+
+  runDatabaseTool(projectId: string, toolId: string, args: Record<string, unknown>): Promise<unknown> {
+    return this.request(`api/projects/${projectId}/tools/${toolId}/run`, { method: "POST", body: JSON.stringify(args) });
+  }
+
 }

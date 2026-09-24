@@ -18,11 +18,12 @@ import { parseOAuthConfigOptions } from "./oauth-config.js";
 import { defaultOrg, resolveOrg, toStoredOrg } from "./orgs.js";
 import { integrationPrompt } from "./prompt.js";
 import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./selection.js";
+import { registerDatabaseCommands } from "./database-commands.js";
 import { registerTeamCommands } from "./team-commands.js";
 import type { Config, PassthroughConfigInput, Project, ToolDefinition } from "./types.js";
 
 const program = new Command();
-program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.2.2");
+program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.3.0");
 
 async function authenticatedConfig(tokenOption?: string) {
   const config = await readConfig();
@@ -358,6 +359,7 @@ function normalizeUrl(value: string): string {
 }
 
 registerTeamCommands(program, authenticatedConfig);
+registerDatabaseCommands(program, authenticatedConfig);
 
 program.configureOutput({ outputError: (text, write) => write(pc.red(text)) });
 program.parseAsync().catch((error: unknown) => {

@@ -88,3 +88,18 @@ npx uivoid credentials customer-ops --auth-key "$API_TOKEN"
 **Expected handoff:** the returned `https://customer-ops.uivoid.app/mcp` URL (if that name was allocated), two read tools, the configured per-user auth mode, and whether login plus a read-only call succeeded. Report pending callback registration or tests rather than claiming completion.
 
 Maintained with [uivoid-cli](https://github.com/corrideluca/uivoid-cli); the npm command is `uivoid`.
+
+### Hosted data (when the backend is configured)
+
+Use `uivoid db --help` for the hosted database commands. Start from a platform-key
+project created with `uivoid create <name> --no-discover --json`. Create a database,
+then typed tables with `db table create --schema <JSON file>`. Column definitions
+map names to `{ "type": "text|integer|number|boolean", "required": true|false }`.
+The server generates UUID IDs. Use `db expose` to register each explicit operation
+(list/get/insert/update/delete), its description, unique MCP name and HTTP path.
+Use `db call <endpoint> --project <project> --file <JSON arguments>` for data access;
+credentials remain server-side. Insert accepts a data object; update accepts id
+plus data; get/delete require id. Never infer bulk-delete authority from a read
+request. A delete operation deletes one row; removing its endpoint does not drop
+the table. Use `db size` to inspect the hardcoded 500 MB limit. Reads/deletes still
+work at the limit. Do not blindly retry inserts after uncertain network failures.
