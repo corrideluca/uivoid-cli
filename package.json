@@ -1,7 +1,7 @@
 {
   "name": "uivoid",
   "version": "0.3.0",
-  "description": "Create UIvoid MCP projects from existing APIs",
+  "description": "Turn an OpenAPI API into a hosted MCP server with scoped tools",
   "homepage": "https://www.uivoid.app/",
   "repository": {
     "type": "git",
@@ -32,10 +32,13 @@
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
+    "openapi",
+    "rest-api",
+    "ai-agents",
+    "developer-tools",
     "cli",
-    "api",
-    "backoffice",
-    "ai"
+    "typescript"
   ],
   "license": "MIT",
   "dependencies": {

@@ -1,14 +1,60 @@
-# uivoid CLI
+<div align="center">
 
-Create an organization-owned [UIvoid](https://www.uivoid.app/) MCP project from an existing API.
+<pre>
+██╗   ██╗██╗██╗   ██╗ ██████╗ ██╗██████╗
+██║   ██║██║██║   ██║██╔═══██╗██║██╔══██╗
+██║   ██║██║██║   ██║██║   ██║██║██║  ██║
+██║   ██║██║╚██╗ ██╔╝██║   ██║██║██║  ██║
+╚██████╔╝██║ ╚████╔╝ ╚██████╔╝██║██████╔╝
+ ╚═════╝ ╚═╝  ╚═══╝   ╚═════╝ ╚═╝╚═════╝
+</pre>
 
-UIvoid is model-agnostic. The generated URL is a standard remote MCP server, so it can be used by Claude, OpenAI clients, and other agents or applications that support remote MCP servers. It does not require a particular model provider; the host application only needs MCP support.
+# UIvoid CLI
+
+**Your API. Your tools. One MCP endpoint.**
+
+Turn your OpenAPI API into a hosted MCP server.
+Choose the operations. Connect your agent. Keep your API where it is.
+
+[![npm version](https://img.shields.io/npm/v/uivoid?style=flat-square&color=6366f1)](https://www.npmjs.com/package/uivoid)
+[![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
+[![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square)](package.json)
+
+[Quick start](#quick-start) · [Live demo](#try-the-live-demo) · [Agent skill](#agent-prompt-and-skill) · [Commands](#commands)
+
+</div>
 
 ```bash
 npx uivoid create my-app
 ```
 
-The CLI opens the UIvoid portal for login, asks for the existing API's base URL, discovers its OpenAPI document, lets you review the operations and scopes, creates the project in your organization, activates its MCP server, and prints its MCP URL:
+```text
+OpenAPI spec  →  Selected tools  →  Hosted MCP URL  →  Your agent
+```
+
+UIvoid discovers your API's OpenAPI document and maps selected operations into scoped MCP tools. It hosts the gateway, so you can connect an agent without writing and deploying a separate MCP server.
+
+## Why UIvoid?
+
+- **Reuse your API.** Map OpenAPI operations into MCP tools without maintaining a second set of tool definitions.
+- **Choose what agents can call.** Select individual tools, with read, write, and destructive scopes. DELETE operations start unselected in the interactive review.
+- **Get a hosted MCP URL.** Connect a client that supports authenticated remote MCP servers, including compatible Claude and OpenAI clients.
+- **Automate setup.** Use an explicit tool allowlist and JSON output in scripts, or let your coding agent follow the bundled skill.
+
+## Quick start
+
+You need **Node.js 20+**, a [UIvoid account](https://portal.uivoid.app) with an owner or admin role in an organization, and an API reachable by UIvoid with an accessible **OpenAPI JSON** document.
+
+```bash
+npx uivoid create my-app
+```
+
+1. Sign in through the browser when prompted.
+2. Enter your deployed API's base URL. The CLI looks for `openapi.json`, `api/openapi.json`, or `swagger.json`.
+3. Review the discovered operations and choose which to expose.
+4. Add the returned MCP URL to your remote MCP client and complete organization login. Verify the connection by calling a selected read tool.
+
+Illustrative output (your hostname and tool count will differ):
 
 ```text
 ✓ Created my-app
@@ -19,6 +65,43 @@ The CLI opens the UIvoid portal for login, asks for the existing API's base URL,
 Ready  https://my-app.uivoid.app/mcp
 Auth: organization login · 9 tools mapped
 ```
+
+For an API with a bearer token and a known specification URL:
+
+```bash
+# Set BASE_URL, OPENAPI_URL, and API_TOKEN to your API's values first.
+# Replace the tool names with operations from your specification.
+npx uivoid create my-app \
+  --base-url "$BASE_URL" \
+  --openapi "$OPENAPI_URL" \
+  --auth-key "$API_TOKEN" \
+  --include list_products,get_product
+```
+
+Want a sample API to connect? The [inventory walkthrough](examples/inventory/README.md) includes a runnable API, an OpenAPI document, and example agent prompts.
+
+## Try the live demo
+
+**[Launch Ledgerly Ops ↗](https://backofficedemo.vercel.app/)** — a demo backoffice for a fictional subscription billing company. Browse sample customers, subscriptions, invoices, payments, and support tickets.
+
+| Demo login | Value |
+| --- | --- |
+| Username | `admin` |
+| Password | `ledgerly-demo` |
+
+The browser demo shows the application and its sample data. To connect its API through your own UIvoid MCP project, you also need the demo API's separate `x-api-key` credential and a UIvoid account. The browser password is not the API key.
+
+[View the demo's OpenAPI document](https://backofficedemo.vercel.app/openapi.json) · [Run your own inventory example](examples/inventory/README.md)
+
+## Before you connect
+
+- **Hosting:** the CLI is MIT licensed; the MCP gateway runs on the UIvoid service and requires an account. Check service availability and terms in the [portal](https://portal.uivoid.app).
+- **API access:** a localhost-only API needs a separately configured public deployment or network path that UIvoid can reach.
+- **Specification support:** the current mapper reads JSON over HTTP, supports GET/POST/PUT/PATCH/DELETE, and expects inline schemas. It does not resolve `$ref` schemas or load YAML/local files. Outbound API credentials are not attached when fetching the specification.
+- **Authentication:** organization login protects the MCP endpoint. Your API's outbound credential is configured separately. If none is supplied, the CLI generates one and displays it once; your API must accept it, or tolerate the header if public.
+- **Scopes:** defaults come from HTTP methods. Review actual behavior before exposing operations; a POST can also delete data.
+
+If this is useful, **star the repository** to help other developers find it. Tried it on your API? [Report a problem or suggest an improvement](https://github.com/corrideluca/uivoid-cli/issues).
 
 ## Commands
 

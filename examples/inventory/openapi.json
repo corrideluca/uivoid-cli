@@ -1,0 +1,24 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Inventory demo", "version": "1.0.0" },
+  "paths": {
+    "/products": {
+      "get": {
+        "operationId": "list_products",
+        "summary": "List products and their stock counts",
+        "responses": { "200": { "description": "Products with id, name, and stock" } }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "operationId": "get_product",
+        "summary": "Get a product and its stock count by ID",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": {
+          "200": { "description": "A product with id, name, and stock" },
+          "404": { "description": "Product not found" }
+        }
+      }
+    }
+  }
+}
