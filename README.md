@@ -28,6 +28,10 @@ Choose the operations. Connect your agent. Keep your API where it is.
 npx uivoid create my-app
 ```
 
+Or paste the setup prompt (`npx uivoid prompt`, or the copy button on [uivoid.app](https://uivoid.app)) into your coding agent and let it do the setup.
+
+<a href="https://github.com/corrideluca/uivoid-cli/blob/main/docs/assets/uivoid-demo.mp4"><img src="https://raw.githubusercontent.com/corrideluca/uivoid-cli/main/docs/assets/demo-poster.jpg" alt="Watch the 25-second UIVOID demo: one command, or one copied prompt, turns your API into scoped MCP tools" width="100%"></a>
+
 ```text
 OpenAPI spec  →  Selected tools  →  Hosted MCP URL  →  Your agent
 ```
