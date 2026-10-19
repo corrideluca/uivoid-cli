@@ -1,6 +1,6 @@
 {
   "name": "uivoid",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Turn an OpenAPI API into a hosted MCP server with scoped tools",
   "homepage": "https://www.uivoid.app/",
   "repository": {
