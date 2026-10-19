@@ -23,7 +23,12 @@ import { registerTeamCommands } from "./team-commands.js";
 import type { Config, PassthroughConfigInput, Project, ToolDefinition } from "./types.js";
 
 const program = new Command();
-program.name("uivoid").description("Turn an existing API into scoped MCP tools").version("0.3.1");
+program
+  .name("uivoid")
+  .description("Turn an existing API into scoped MCP tools, or start from a free hosted database")
+  .version("0.3.2");
+// A quiet brand line above the help, matching uivoid.app: wordmark, then what it does.
+program.addHelpText("beforeAll", `\n  ${pc.bold("uivoid")}  ${pc.dim("your API as MCP tools · free hosted Postgres · uivoid.app")}\n`);
 
 async function authenticatedConfig(tokenOption?: string) {
   const config = await readConfig();

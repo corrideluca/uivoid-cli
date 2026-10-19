@@ -1,23 +1,20 @@
 <div align="center">
 
-<pre>
-██╗   ██╗██╗██╗   ██╗ ██████╗ ██╗██████╗
-██║   ██║██║██║   ██║██╔═══██╗██║██╔══██╗
-██║   ██║██║██║   ██║██║   ██║██║██║  ██║
-██║   ██║██║╚██╗ ██╔╝██║   ██║██║██║  ██║
-╚██████╔╝██║ ╚████╔╝ ╚██████╔╝██║██████╔╝
- ╚═════╝ ╚═╝  ╚═══╝   ╚═════╝ ╚═╝╚═════╝
-</pre>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/corrideluca/uivoid-cli/main/docs/assets/uivoid-logo-dark.png">
+  <img src="https://raw.githubusercontent.com/corrideluca/uivoid-cli/main/docs/assets/uivoid-logo-light.png" alt="uivoid" width="300">
+</picture>
 
-# UIvoid CLI
+### The uivoid CLI
 
 **Your API. Your tools. One MCP endpoint.**
 
 Turn your OpenAPI API into a hosted MCP server.
 Choose the operations. Connect your agent. Keep your API where it is.
+No API yet? Start from zero with a [free hosted Postgres database](#hosted-databases).
 
-[![npm version](https://img.shields.io/npm/v/uivoid?style=flat-square&color=6366f1)](https://www.npmjs.com/package/uivoid)
-[![License: MIT](https://img.shields.io/badge/License-MIT-6366f1?style=flat-square)](LICENSE)
+[![npm version](https://img.shields.io/npm/v/uivoid?style=flat-square&color=0b0b0e)](https://www.npmjs.com/package/uivoid)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0b0b0e?style=flat-square)](LICENSE)
 [![Node.js 20+](https://img.shields.io/badge/Node.js-20%2B-339933?style=flat-square)](package.json)
 
 [Quick start](#quick-start) · [Live demo](#try-the-live-demo) · [Agent skill](#agent-prompt-and-skill) · [Commands](#commands)
@@ -30,7 +27,7 @@ npx uivoid create my-app
 
 Or paste the setup prompt (`npx uivoid prompt`, or the copy button on [uivoid.app](https://uivoid.app)) into your coding agent and let it do the setup.
 
-<a href="https://github.com/corrideluca/uivoid-cli/blob/main/docs/assets/uivoid-demo.mp4"><img src="https://raw.githubusercontent.com/corrideluca/uivoid-cli/main/docs/assets/demo-poster.jpg" alt="Watch the 25-second UIVOID demo: one command, or one copied prompt, turns your API into scoped MCP tools" width="100%"></a>
+<a href="https://github.com/corrideluca/uivoid-cli/blob/main/docs/assets/uivoid-demo.mp4"><img src="https://raw.githubusercontent.com/corrideluca/uivoid-cli/main/docs/assets/demo-poster.jpg?v=2" alt="Watch the 25-second UIVOID demo: one command, or one copied prompt, turns your API into scoped MCP tools" width="100%"></a>
 
 ```text
 OpenAPI spec  →  Selected tools  →  Hosted MCP URL  →  Your agent
