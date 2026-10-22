@@ -19,6 +19,7 @@ import { defaultOrg, resolveOrg, toStoredOrg } from "./orgs.js";
 import { integrationPrompt } from "./prompt.js";
 import { assertSingleSelectionMode, resolveNonInteractiveSelection } from "./selection.js";
 import { registerDatabaseCommands } from "./database-commands.js";
+import { registerPublishCommands } from "./publish-commands.js";
 import { registerTeamCommands } from "./team-commands.js";
 import type { Config, PassthroughConfigInput, Project, ToolDefinition } from "./types.js";
 
@@ -365,6 +366,7 @@ function normalizeUrl(value: string): string {
 
 registerTeamCommands(program, authenticatedConfig);
 registerDatabaseCommands(program, authenticatedConfig);
+registerPublishCommands(program, authenticatedConfig);
 
 program.configureOutput({ outputError: (text, write) => write(pc.red(text)) });
 program.parseAsync().catch((error: unknown) => {

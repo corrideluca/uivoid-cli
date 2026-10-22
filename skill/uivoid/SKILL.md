@@ -125,3 +125,9 @@ clients that cache tool schemas should reconnect. Existing tools keep their IDs
 and descriptions. If a schema change was interrupted, retry that same operation
 before proceeding; the backend verifies the physical schema before reconciling
 metadata. Do not work around a schema conflict by silently creating a new table.
+
+### Listing in the MCP Registry
+
+- `npx uivoid publish <project> --title "..." --description "..."` requests a listing as `app.uivoid/<project>` in the official MCP Registry (title and description up to 100 characters; optional `--website` must be https://). uivoid staff review new listings before they go public. Only list a project when the user asks.
+- `npx uivoid publish <project> --status` shows the listing's review/publish state without changing anything.
+- `npx uivoid unpublish <project> --yes` removes the listing or withdraws a request in review.

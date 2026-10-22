@@ -125,3 +125,23 @@ export interface DatabaseToolInput {
   operation: "list" | "get" | "insert" | "update" | "delete";
   route: string;
 }
+
+export interface RegistryListing {
+  status: "pending" | "published" | "rejected" | "unlisted";
+  title: string;
+  description: string;
+  website_url: string;
+  server_name: string;
+  remote_url: string;
+  version: string | null;
+  published_at: string | null;
+  rejection_reason: string;
+  registry_url: string | null;
+  last_error?: string;
+}
+
+export interface ListingState {
+  listing: RegistryListing | null;
+  eligible: boolean;
+  ineligible_reason: string;
+}

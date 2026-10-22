@@ -1,5 +1,5 @@
 import type {
-  HostedColumnDefinition, HostedColumnUpdate, HostedDatabase, HostedTable, DatabaseToolInput, Config, CreatedInvitation, Invitation, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
+  HostedColumnDefinition, HostedColumnUpdate, HostedDatabase, HostedTable, DatabaseToolInput, Config, CreatedInvitation, Invitation, ListingState, Member, Membership, PassthroughConfig, PassthroughConfigInput, Project, Role, ToolDefinition,
 } from "./types.js";
 
 export class ApiError extends Error {
@@ -56,6 +56,18 @@ export class UivoidApi {
       method: "PATCH",
       body: JSON.stringify(patch),
     });
+  }
+
+  getListing(projectId: string): Promise<ListingState> {
+    return this.request(`api/projects/${projectId}/listing`);
+  }
+
+  requestListing(projectId: string, input: { title: string; description: string; website_url?: string }): Promise<ListingState> {
+    return this.request(`api/projects/${projectId}/listing`, { method: "PUT", body: JSON.stringify(input) });
+  }
+
+  async unlist(projectId: string): Promise<void> {
+    await this.request(`api/projects/${projectId}/listing`, { method: "DELETE" });
   }
 
   deleteProject(projectId: string): Promise<void> {

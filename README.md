@@ -260,3 +260,13 @@ schemas are regenerated automatically. Re-list MCP tools afterwards; clients
 that cache schemas may need to reconnect. Identical add-column retries are safe;
 a conflicting definition is rejected. After an interrupted schema change, retry
 the same command to reconcile metadata with PostgreSQL before doing other work.
+
+### Publish to the MCP Registry
+
+List a project in the official [MCP Registry](https://registry.modelcontextprotocol.io) as `app.uivoid/<project>`, so other people's agents and MCP directories can find it. uivoid reviews new listings first; edits to a published listing go live directly. Only active projects with public or OAuth passthrough auth and at least one tool can be listed.
+
+```bash
+npx uivoid publish my-app --title "My App" --description "Manage orders and customers"
+npx uivoid publish my-app --status
+npx uivoid unpublish my-app
+```
